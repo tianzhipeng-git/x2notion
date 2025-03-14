@@ -9,6 +9,26 @@ document.addEventListener('DOMContentLoaded', function() {
   const imageServiceRadios = document.querySelectorAll('input[name="image-service"]');
   const imgbbSection = document.getElementById('imgbb-section');
   const imgurSection = document.getElementById('imgur-section');
+  const togglePasswordButtons = document.querySelectorAll('.toggle-password');
+  
+  // 处理密码显示/隐藏功能
+  togglePasswordButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const targetId = this.getAttribute('data-target');
+      const inputField = document.getElementById(targetId);
+      
+      // 切换密码可见性
+      if (inputField.type === 'password') {
+        inputField.type = 'text';
+        this.classList.remove('fa-eye-slash');
+        this.classList.add('fa-eye');
+      } else {
+        inputField.type = 'password';
+        this.classList.remove('fa-eye');
+        this.classList.add('fa-eye-slash');
+      }
+    });
+  });
   
   // 从存储中加载设置
   chrome.storage.sync.get(
@@ -84,23 +104,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 验证输入
     if (!notionApiKey) {
-      showStatus('请输入Notion API密钥', 'error');
+      showStatus('Please enter Notion API key', 'error');
       return;
     }
     
     if (!notionDatabaseId) {
-      showStatus('请输入Notion数据库ID', 'error');
+      showStatus('Please enter Notion database ID', 'error');
       return;
     }
     
     // 根据选择的服务验证相应的API密钥
     if (imageService === 'imgbb' && !imgbbApiKey) {
-      showStatus('请输入ImgBB API密钥', 'error');
+      showStatus('Please enter ImgBB API key', 'error');
       return;
     }
     
     if (imageService === 'imgur' && !imgurClientId) {
-      showStatus('请输入Imgur Client ID', 'error');
+      showStatus('Please enter Imgur Client ID', 'error');
       return;
     }
     
@@ -114,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
         imageService: imageService
       },
       function() {
-        showStatus('设置已保存', 'success');
+        showStatus('Settings saved', 'success');
       }
     );
   });

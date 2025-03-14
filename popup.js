@@ -5,9 +5,20 @@ document.addEventListener('DOMContentLoaded', function() {
   const openSettingsButton = document.getElementById('open-settings');
   const statusMessage = document.getElementById('status-message');
 
+  // 检查Notion API设置是否已配置
+  chrome.storage.sync.get(['notionApiKey', 'notionDatabaseId'], function(items) {
+    if (!items.notionApiKey || !items.notionDatabaseId) {
+      statusMessage.textContent = 'Please configure Notion API key and database ID in settings first';
+      capturePageButton.disabled = true;
+      captureSelectionButton.disabled = true;
+    } else {
+      statusMessage.textContent = 'Ready';
+    }
+  });
+
   // 保存整个页面
   capturePageButton.addEventListener('click', function() {
-    statusMessage.textContent = '正在保存页面...';
+    statusMessage.textContent = 'Saving page...';
     
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(
@@ -15,9 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
         {action: 'capturePage'},
         function(response) {
           if (response && response.success) {
-            statusMessage.textContent = '页面已保存到Notion';
+            statusMessage.textContent = 'Page saved to Notion';
           } else {
-            statusMessage.textContent = '保存失败: ' + (response ? response.error : '未知错误');
+            statusMessage.textContent = 'Save failed: ' + (response ? response.error : 'Unknown error');
           }
           console.log('capturePage response:', response);
         }
@@ -27,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 保存选中内容
   captureSelectionButton.addEventListener('click', function() {
-    statusMessage.textContent = '正在保存选中内容...';
+    statusMessage.textContent = 'Saving selection...';
     
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(
@@ -36,9 +47,9 @@ document.addEventListener('DOMContentLoaded', function() {
         function(response) {
           console.log('captureSelection response:', response);
           if (response && response.success) {
-            statusMessage.textContent = '选中内容已保存到Notion';
+            statusMessage.textContent = 'Selection saved to Notion';
           } else {
-            statusMessage.textContent = '保存失败: ' + (response ? response.error : '未知错误');
+            statusMessage.textContent = 'Save failed: ' + (response ? response.error : 'Unknown error');
           }
         }
       );
@@ -51,6 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   if (chrome.runtime.lastError) {
-    console.error('Chrome运行时错误:', chrome.runtime.lastError.message);
+    console.error('Chrome runtime error:', chrome.runtime.lastError.message);
   }
 }); 

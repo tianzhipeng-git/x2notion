@@ -30,7 +30,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     const selectionText = selection.toString();
     
     if (!selectionText) {
-      sendResponse({success: false, error: '没有选中任何内容'});
+      sendResponse({success: false, error: 'No content selected'});
       return;
     }
     
@@ -66,7 +66,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     // 获取推文内容
     const tweetElement = request.tweetElement;
     const tweetData = {
-      title: '推文 - ' + document.title,
+      title: 'Tweet - ' + document.title,
       url: window.location.href,
       content: tweetElement.textContent,
       html: tweetElement.outerHTML
@@ -105,7 +105,7 @@ function createSaveToNotionButton() {
     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
       <path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5z"></path>
     </svg>
-    <span>保存到Notion</span>
+    <span>X2Notion</span>
   `;
   button.style.cssText = `
     display: flex;
@@ -217,7 +217,7 @@ async function extractImagesFromTweet(tweetElement) {
         };
         
         img.onerror = function() {
-          reject(new Error('图片加载失败'));
+          reject(new Error('Image loading failed'));
         };
         
         img.src = element.src;
@@ -229,7 +229,7 @@ async function extractImagesFromTweet(tweetElement) {
         originalSrc: element.src
       });
     } catch (error) {
-      console.error(`转换图片 ${i + 1} 失败:`, error);
+      console.error(`Converting image ${i + 1} failed:`, error);
       // 如果转换失败，我们仍然添加原始URL
       imageData.push({
         index: i,
@@ -243,24 +243,178 @@ async function extractImagesFromTweet(tweetElement) {
 }
 
 function extractQuotedUrl(tweetElement) {
-  // 查找引用推文的链接
-  const quotedLinks = tweetElement.querySelectorAll('a[href*="/status/"]');
+  // 查找引用外部的链接
+  result = []
+  const quotedLinks = tweetElement.querySelectorAll('a[href*="http"]');
   for (const link of quotedLinks) {
-    // 排除当前推文的链接
-    if (link.getAttribute('role') === 'link' && 
+    // 排除当前推文的链接、图片链接和其他非引用链接
+    console.log(link.href)
+    if (link.getAttribute('role') === 'link' &&
         !link.closest('[data-testid="tweet-text-show-more-link"]') && 
-        !link.closest('[data-testid="User-Name"]')) {
-      return link.href;
+        !link.closest('[data-testid="User-Name"]') &&
+        !link.href.includes('pbs.twimg.com/media/') && 
+        !link.href.includes('/analytics') && 
+        !(link.href.includes('/status/') && link.href.includes('/photo/')) &&
+        !link.href.includes('pbs.twimg.com/card_img/')) {
+      result.push(link.href);
+    }
+  }
+
+  // 去重处理
+  return [...new Set(result)];
+}
+
+// 从推文中提取视频缩略图
+async function extractVideoThumbnail(tweetElement) {
+  // 查找视频元素
+  const videoElements = tweetElement.querySelectorAll('video');
+  if (videoElements.length === 0) {
+    // 如果没有找到视频元素，尝试查找视频容器
+    const videoContainers = tweetElement.querySelectorAll('[data-testid="videoPlayer"], [data-testid="videoComponent"]');
+    if (videoContainers.length === 0) {
+      return null; // 没有找到视频
     }
   }
   
-  // 查找卡片中的链接
-  const cardLink = tweetElement.querySelector('a[data-testid="card.wrapper"]');
-  if (cardLink) {
-    return cardLink.href;
+  // 尝试查找视频的预览图（通常是poster属性或背景图）
+  let thumbnailSrc = null;
+  
+  // 1. 检查视频元素的poster属性
+  for (const video of videoElements) {
+    const poster = video.getAttribute('poster');
+    if (poster) {
+      thumbnailSrc = poster;
+      break;
+    }
   }
   
-  return '';
+  // 2. 如果没有找到poster，查找视频容器中的背景图片
+  if (!thumbnailSrc) {
+    const videoContainers = tweetElement.querySelectorAll('[data-testid="videoPlayer"], [data-testid="videoComponent"]');
+    for (const container of videoContainers) {
+      // 查找容器内的所有元素，寻找背景图
+      const elementsWithBg = container.querySelectorAll('*');
+      for (const element of elementsWithBg) {
+        const style = element.getAttribute('style');
+        if (style && style.includes('background-image')) {
+          const match = style.match(/background-image:\s*url\(['"]?(.*?)['"]?\)/i);
+          if (match && match[1]) {
+            thumbnailSrc = match[1];
+            break;
+          }
+        }
+      }
+      
+      if (thumbnailSrc) break;
+      
+      // 查找容器内的图片元素（有些视频播放器使用img作为缩略图）
+      const imgElements = container.querySelectorAll('img');
+      for (const img of imgElements) {
+        const src = img.getAttribute('src');
+        if (src) {
+          thumbnailSrc = src;
+          break;
+        }
+      }
+      
+      if (thumbnailSrc) break;
+    }
+  }
+  
+  // 3. 如果仍然没有找到缩略图，尝试查找视频播放按钮附近的图片
+  if (!thumbnailSrc) {
+    const playButtons = tweetElement.querySelectorAll('[aria-label*="Play"], [aria-label*="play"], [role="button"][aria-label*="video"]');
+    for (const button of playButtons) {
+      // 查找按钮的父元素
+      let parent = button.parentElement;
+      for (let i = 0; i < 3 && parent; i++) { // 向上查找3层
+        // 查找背景图
+        const style = parent.getAttribute('style');
+        if (style && style.includes('background-image')) {
+          const match = style.match(/background-image:\s*url\(['"]?(.*?)['"]?\)/i);
+          if (match && match[1]) {
+            thumbnailSrc = match[1];
+            break;
+          }
+        }
+        
+        // 查找图片元素
+        const imgElements = parent.querySelectorAll('img');
+        for (const img of imgElements) {
+          const src = img.getAttribute('src');
+          if (src) {
+            thumbnailSrc = src;
+            break;
+          }
+        }
+        
+        if (thumbnailSrc) break;
+        parent = parent.parentElement;
+      }
+      
+      if (thumbnailSrc) break;
+    }
+  }
+  
+  // 如果没有找到缩略图，返回null
+  if (!thumbnailSrc) {
+    return null;
+  }
+  
+  // 处理缩略图URL，获取高质量版本
+  let highQualitySrc = thumbnailSrc;
+  if (thumbnailSrc.includes('pbs.twimg.com')) {
+    const baseUrl = thumbnailSrc.split('?')[0];
+    highQualitySrc = thumbnailSrc.includes('?') ? 
+      `${baseUrl}?format=jpg&name=large` : 
+      `${thumbnailSrc}?format=jpg&name=large`;
+  }
+  
+  // 将缩略图转换为Base64
+  try {
+    const dataURL = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // 尝试解决跨域问题
+      
+      img.onload = function() {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // 设置canvas大小
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          
+          // 将图片绘制到canvas上
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          // 将canvas转换为Base64数据
+          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataURL);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      img.onerror = function() {
+        reject(new Error('Video thumbnail loading failed'));
+      };
+      
+      img.src = highQualitySrc;
+    });
+    
+    return [{
+      dataURL: dataURL,
+      originalSrc: highQualitySrc
+    }];
+  } catch (error) {
+    console.error('Converting video thumbnail failed:', error);
+    // 如果转换失败，返回原始URL
+    return {
+      dataURL: null,
+      originalSrc: highQualitySrc
+    };
+  }
 }
 
 // 处理保存推文到Notion的点击事件
@@ -271,12 +425,13 @@ async function handleTweetSaveToNotionClick(event, tweetElement) {
   // 显示加载状态
   const button = event.currentTarget;
   const originalText = button.innerHTML;
-  button.innerHTML = '保存中...';
+  button.innerHTML = 'Saving...';
   button.disabled = true;
   
   try {
     // 提取推文中的图片并转换为Base64
     const imageData = await extractImagesFromTweet(tweetElement);
+    const videoThumbnail = await extractVideoThumbnail(tweetElement);
     
     // 发送消息到内容脚本自身
     chrome.runtime.sendMessage(
@@ -288,11 +443,13 @@ async function handleTweetSaveToNotionClick(event, tweetElement) {
           url: tweetElement.querySelector('a[href*="/status/"]')?.href || window.location.href,
           post_date: tweetElement.querySelector('time')?.getAttribute('datetime'),
           save_date: new Date().toISOString(),
-          content: tweetElement.querySelector('[data-testid="tweetText"]')?.innerText || '无文本内容',
+          content: tweetElement.querySelector('[data-testid="tweetText"]')?.innerText || 'No text content',
           html: tweetElement.outerHTML,
           imageData: imageData, // 直接传递Base64图片数据
           // 提取推文中的引用链接
           quoted_url: extractQuotedUrl(tweetElement),
+          quoted_text: tweetElement.querySelectorAll('[data-testid="tweetText"]')[1]?.innerText || undefined,
+          video_thumbnail: videoThumbnail
         },
         type: 'tweet'
       },
@@ -304,12 +461,12 @@ async function handleTweetSaveToNotionClick(event, tweetElement) {
           
           // 显示结果
           if (response && response.success) {
-            button.innerHTML = '已保存 ✓';
+            button.innerHTML = 'Saved ✓';
             setTimeout(() => {
               button.innerHTML = originalText;
             }, 2000);
           } else {
-            button.innerHTML = '保存失败 ✗';
+            button.innerHTML = 'Failed ✗';
             setTimeout(() => {
               button.innerHTML = originalText;
             }, 2000);
@@ -318,8 +475,8 @@ async function handleTweetSaveToNotionClick(event, tweetElement) {
       }
     );
   } catch (error) {
-    console.error('处理图片失败:', error);
-    button.innerHTML = '保存失败 ✗';
+    console.error('Processing images failed:', error);
+    button.innerHTML = 'Failed ✗';
     setTimeout(() => {
       button.innerHTML = originalText;
       button.disabled = false;

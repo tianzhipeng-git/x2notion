@@ -46,6 +46,26 @@ input[type="password"] {
   box-sizing: border-box;
 }
 
+.input-container {
+  position: relative;
+  width: 100%;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #666;
+  z-index: 10;
+  padding: 5px;
+}
+
+.toggle-password:hover {
+  color: #333;
+}
+
 .help-text {
   margin-top: 5px;
   font-size: 12px;

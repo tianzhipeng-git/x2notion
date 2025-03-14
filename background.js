@@ -23,7 +23,7 @@ async function createNotionPage(apiKey, databaseId, data, type) {
         rich_text: [
           {
             text: {
-              content: type === 'page' ? '完整页面' : (type === 'tweet' ? '推文' : '选中内容')
+              content: type === 'page' ? 'Full Page' : (type === 'tweet' ? 'Tweet' : 'Selection')
             }
           }
         ]
@@ -66,8 +66,38 @@ async function createNotionPage(apiKey, databaseId, data, type) {
           ]
         }
       },
+      ...(data.quoted_text ? [
+        {
+          object: 'block',
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [
+              {
+                type: 'text',
+                text: {
+                  content: 'Quoted Content: '
+                }
+              }
+            ]
+          }
+        },
+        {
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [
+              {
+                type: 'text',
+                text: {
+                  content: data.quoted_text.length > 2000 ? data.quoted_text.substring(0, 1996) + '...' : data.quoted_text
+                }
+              }
+            ]
+          }
+        }
+      ] : []),
       // 如果有引用链接，添加引用链接块
-      ...(data.quoted_url ? [{
+      ...(data.quoted_url && data.quoted_url.length > 0 ? [{
         object: 'block',
         type: 'paragraph',
         paragraph: {
@@ -75,21 +105,21 @@ async function createNotionPage(apiKey, databaseId, data, type) {
             {
               type: 'text',
               text: {
-                content: '引用链接: '
+                content: 'Quoted Links: '
               },
               annotations: {
                 bold: true
               }
             },
-            {
+            ...data.quoted_url.map(url => ({
               type: 'text',
               text: {
-                content: data.quoted_url,
+                content: url + ' \n',
                 link: {
-                  url: data.quoted_url
+                  url: url
                 }
               }
-            }
+            }))
           ]
         }
       }] : [])
@@ -109,7 +139,7 @@ async function createNotionPage(apiKey, databaseId, data, type) {
   
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.message || '未知错误');
+    throw new Error(errorData.message || 'Unknown Error');
   }
   console.timeEnd('createNotionPage');
   
@@ -120,8 +150,17 @@ async function createNotionPage(apiKey, databaseId, data, type) {
     try {
       await processAndAppendImages(apiKey, pageData.id, data.imageData);
     } catch (error) {
-      console.error('处理图片失败:', error);
+      console.error('Failed to process images:', error);
       // 即使图片处理失败，我们仍然返回页面数据
+    }
+  }
+  
+  // 如果有视频缩略图，添加视频缩略图块
+  if (data.video_thumbnail) {
+    try {
+      await processAndAppendImages(apiKey, pageData.id, data.video_thumbnail);
+    } catch (error) {
+      console.error('Failed to process video thumbnail:', error);
     }
   }
   
@@ -137,7 +176,7 @@ async function uploadImageWithSelectedService(imageData) {
   
   const imageService = items.imageService || 'freeimage';
   
-  console.log(`使用图片服务: ${imageService}`);
+  console.log(`Using image service: ${imageService}`);
   
   // 根据选择的服务调用相应的上传函数
   switch (imageService) {
@@ -150,7 +189,7 @@ async function uploadImageWithSelectedService(imageData) {
     case 'freeimage':
       return await uploadImageToFreeimage(imageData);
     default:
-      throw new Error(`未知的图片服务: ${imageService}`);
+      throw new Error(`Unknown image service: ${imageService}`);
   }
 }
 
@@ -173,14 +212,14 @@ async function prepareImageBlob(imageData) {
     });
     
     if (!imageResponse.ok) {
-      throw new Error(`无法获取图片: ${imageResponse.status} ${imageResponse.statusText}`);
+      throw new Error(`Unable to get image: ${imageResponse.status} ${imageResponse.statusText}`);
     }
     
     // 将图片转换为Blob
     return await imageResponse.blob();
   }
   
-  throw new Error('不支持的图片数据格式');
+  throw new Error('Unsupported image data format');
 }
 
 // 将Base64图片上传到ImgBB
@@ -194,7 +233,7 @@ async function uploadImageToImgBB(base64Data) {
     const imgbbApiKey = items.imgbbApiKey;
     
     if (!imgbbApiKey) {
-      throw new Error('未设置ImgBB API密钥，请在扩展选项中设置');
+      throw new Error('ImgBB API key not set, please set it in extension options');
     }
     
     // 准备图片数据
@@ -212,19 +251,19 @@ async function uploadImageToImgBB(base64Data) {
     });
     
     if (!uploadResponse.ok) {
-      throw new Error(`上传到ImgBB失败: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      throw new Error(`Upload to ImgBB failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
     }
     
     const uploadResult = await uploadResponse.json();
     
     if (!uploadResult.success) {
-      throw new Error(`ImgBB上传失败: ${uploadResult.error?.message || '未知错误'}`);
+      throw new Error(`ImgBB upload failed: ${uploadResult.error?.message || 'Unknown error'}`);
     }
     
     // 返回新的图片URL
     return uploadResult.data.url;
   } catch (error) {
-    console.error('上传图片失败:', error);
+    console.error('Image upload failed:', error);
     return null;
   }
 }
@@ -257,26 +296,26 @@ async function uploadImageToPostImages(base64Data) {
     });
     
     if (!uploadResponse.ok) {
-      throw new Error(`上传到PostImages失败: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      throw new Error(`Upload to PostImages failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
     }
     
     const uploadResult = await uploadResponse.json();
     
     if (!uploadResult.url) {
-      throw new Error('PostImages上传失败: 未返回有效的图片URL');
+      throw new Error('PostImages upload failed: No valid image URL returned');
     }
     
     // 返回直接图片URL
     return uploadResult.url;
   } catch (error) {
-    console.error('上传图片到PostImages失败:', error);
+    console.error('Upload to PostImages failed:', error);
     
     // 如果PostImages上传失败，尝试使用备用服务
     try {
-      console.log('尝试使用备用上传服务...');
+      console.log('Trying backup upload service...');
       return await uploadImageToFreeimage(base64Data);
     } catch (backupError) {
-      console.error('备用上传服务也失败:', backupError);
+      console.error('Backup upload service also failed:', backupError);
       return null;
     }
   }
@@ -300,25 +339,25 @@ async function uploadImageToFreeimage(base64Data) {
     });
     
     if (!uploadResponse.ok) {
-      throw new Error(`上传到freeimage.host失败: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      throw new Error(`Upload to freeimage.host failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
     }
     
     const uploadResult = await uploadResponse.json();
     
     if (!uploadResult.success || !uploadResult.image) {
-      throw new Error('freeimage.host上传失败: ' + (uploadResult.error || '未返回有效的图片URL'));
+      throw new Error('freeimage.host upload failed: ' + (uploadResult.error || 'No valid image URL returned'));
     }
     
     // 返回新的图片URL
     return uploadResult.image.url;
   } catch (error) {
-    console.error('备用上传方法失败:', error);
+    console.error('Backup upload method failed:', error);
     
     // 如果备用方法也失败，尝试使用另一个免费服务
     try {
       return await uploadImageToImgur(base64Data);
     } catch (imgurError) {
-      console.error('Imgur上传也失败:', imgurError);
+      console.error('Imgur upload also failed:', imgurError);
       throw error; // 抛出原始错误
     }
   }
@@ -345,7 +384,7 @@ async function uploadImageToImgur(base64Data) {
     const imgurClientId = items.imgurClientId;
     
     if (!imgurClientId) {
-      throw new Error('未设置Imgur Client ID，请在扩展选项中设置');
+      throw new Error('Imgur Client ID not set, please set it in extension options');
     }
     
     // 准备上传数据
@@ -383,25 +422,26 @@ async function uploadImageToImgur(base64Data) {
     });
     
     if (!uploadResponse.ok) {
-      throw new Error(`上传到Imgur失败: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      throw new Error(`Upload to Imgur failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
     }
     
     const uploadResult = await uploadResponse.json();
     
     if (!uploadResult.success) {
-      throw new Error(`Imgur上传失败: ${uploadResult.data?.error || '未知错误'}`);
+      throw new Error(`Imgur upload failed: ${uploadResult.data?.error || 'Unknown error'}`);
     }
     
     // 返回新的图片URL
     return uploadResult.data.link;
   } catch (error) {
-    console.error('上传图片到Imgur失败:', error);
+    console.error('Upload to Imgur failed:', error);
     return null;
   }
 }
 
 // 处理并添加图片到Notion页面
 async function processAndAppendImages(apiKey, pageId, imageData) {
+  debugger;
   const url = `https://api.notion.com/v1/blocks/${pageId}/children`;
   
   // 添加标题
@@ -414,7 +454,7 @@ async function processAndAppendImages(apiKey, pageId, imageData) {
   
   for (let i = 0; i < imageData.length; i++) {
     const imgData = imageData[i];
-    console.log(`处理图片 ${i + 1}/${imageData.length}`);
+    console.log(`Processing image ${i + 1}/${imageData.length}`);
     
     try {
       // 使用选择的服务上传图片
@@ -422,7 +462,7 @@ async function processAndAppendImages(apiKey, pageId, imageData) {
       const newImageUrl = await uploadImageWithSelectedService(dataToUpload);
       
       if (newImageUrl) {
-        console.log(`上传图片成功: ${newImageUrl}`);
+        console.log(`Image upload successful: ${newImageUrl}`);
         // 如果上传成功，添加图片块
         blocks.push({
           object: 'block',
@@ -436,10 +476,10 @@ async function processAndAppendImages(apiKey, pageId, imageData) {
         });
         successCount++;
       } else {
-        throw new Error('上传失败');
+        throw new Error('Upload failed');
       }
     } catch (error) {
-      console.error(`处理图片 ${i + 1} 失败:`, error);
+      console.error(`Processing image ${i + 1} failed:`, error);
       // 如果上传失败，添加文本块
       blocks.push({
         object: 'block',
@@ -449,7 +489,7 @@ async function processAndAppendImages(apiKey, pageId, imageData) {
             {
               type: 'text',
               text: {
-                content: `图片 ${i + 1}: 处理失败。`
+                content: `Image ${i + 1}: Processing failed.`
               }
             }
           ]
@@ -468,7 +508,7 @@ async function processAndAppendImages(apiKey, pageId, imageData) {
         {
           type: 'text',
           text: {
-            content: `图片处理结果: 成功 ${successCount} 张，失败 ${failCount} 张`
+            content: `Image processing results: ${successCount} successful, ${failCount} failed`
           }
         }
       ]
@@ -490,7 +530,7 @@ async function processAndAppendImages(apiKey, pageId, imageData) {
   
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error('添加图片失败: ' + (errorData.message || '未知错误'));
+    throw new Error('Failed to add images: ' + (errorData.message || 'Unknown error'));
   }
   
   return await response.json();
@@ -500,7 +540,7 @@ async function processAndAppendImages(apiKey, pageId, imageData) {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'saveSelectionToNotion',
-    title: '保存选中内容到Notion',
+    title: 'Save Selection to Notion',
     contexts: ['selection']
   });
 });
@@ -518,7 +558,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             type: 'basic',
             iconUrl: 'icons/icon128.png',
             title: 'X2Notion',
-            message: '选中内容已保存到Notion'
+            message: 'Selection saved to Notion'
           });
         } else {
           // 显示错误通知
@@ -526,7 +566,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             type: 'basic',
             iconUrl: 'icons/icon128.png',
             title: 'X2Notion',
-            message: '保存失败: ' + (response ? response.error : '未知错误')
+            message: 'Save failed: ' + (response ? response.error : 'Unknown error')
           });
         }
       }
@@ -545,7 +585,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       if (!apiKey || !databaseId) {
         sendResponse({
           success: false, 
-          error: '请先在设置中配置Notion API密钥和数据库ID'
+          error: 'Please configure Notion API key and database ID in settings first'
         });
         return;
       }
@@ -560,10 +600,10 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
           sendResponse({success: true});
         })
         .catch(error => {
-          console.error('发送到Notion失败:', error);
+          console.error('Send to Notion failed:', error);
           sendResponse({
             success: false, 
-            error: '发送到Notion失败: ' + error.message
+            error: 'Send to Notion failed: ' + error.message
           });
         });
     });

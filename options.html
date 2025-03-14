@@ -2,34 +2,43 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>X2Notion 设置</title>
+  <title>X2Notion Settings</title>
   <link rel="stylesheet" href="options.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
   <div class="container">
-    <h1>X2Notion 设置</h1>
+    <h1>X2Notion Settings</h1>
     
     <div class="form-group">
-      <label for="notion-api-key">Notion API密钥</label>
-      <input type="text" id="notion-api-key" placeholder="输入您的Notion API密钥">
+      <label for="notion-api-key">Notion API Key</label>
+      <div class="input-container">
+        <input type="password" id="notion-api-key" placeholder="Enter your Notion API key">
+        <i class="toggle-password fas fa-eye-slash" data-target="notion-api-key"></i>
+      </div>
       <p class="help-text">
-        如何获取: <a href="https://www.notion.so/my-integrations" target="_blank">创建一个Notion集成</a>，
-        然后将生成的密钥粘贴到这里。
+        How to get: <a href="https://www.notion.so/my-integrations" target="_blank">Create a Notion integration</a>,
+        then paste the generated key here.
       </p>
     </div>
     
     <div class="form-group">
-      <label for="notion-database-id">Notion数据库ID</label>
-      <input type="text" id="notion-database-id" placeholder="输入您的Notion数据库ID">
+      <label for="notion-database-id">Notion Database ID</label>
+      <div class="input-container">
+        <input type="password" id="notion-database-id" placeholder="Enter your Notion database ID">
+        <i class="toggle-password fas fa-eye-slash" data-target="notion-database-id"></i>
+      </div>
       <p class="help-text">
-        如何获取: 在Notion中创建一个数据库，然后从URL中复制数据库ID。
-        例如: https://www.notion.so/myworkspace/a8aec43384f447ed84390e8e42c2e089?v=...
-        其中 a8aec43384f447ed84390e8e42c2e089 就是数据库ID。
+        How to get: Create a database in Notion, then copy the database ID from the URL.
+        For example: https://www.notion.so/myworkspace/a8aec43384f447ed84390e8e42c2e089?v=...
+        where a8aec43384f447ed84390e8e42c2e089 is the database ID.
+
+        Remember to add the database to the integration.
       </p>
     </div>
     
     <div class="form-group">
-      <label>图片中转服务</label>
+      <label>Image Hosting Service</label>
       <div class="radio-group">
         <label>
           <input type="radio" name="image-service" value="freeimage" checked> FreeImage
@@ -45,30 +54,36 @@
         </label>
       </div>
       <p class="help-text">
-        由于notion不支持直接上传图片data, 需要用一个图床进行图片中转服务。不同服务可能有不同的使用限制和稳定性。
+        Since Notion doesn't support direct image data upload, an image hosting service is needed. Different services may have different usage limits and stability.
       </p>
     </div>
     
     <div class="form-group" id="imgbb-section">
-      <label for="imgbb-api-key">ImgBB API密钥</label>
-      <input type="text" id="imgbb-api-key" placeholder="输入您的ImgBB API密钥">
+      <label for="imgbb-api-key">ImgBB API Key</label>
+      <div class="input-container">
+        <input type="password" id="imgbb-api-key" placeholder="Enter your ImgBB API key">
+        <i class="toggle-password fas fa-eye-slash" data-target="imgbb-api-key"></i>
+      </div>
       <p class="help-text">
-        如何获取: <a href="https://api.imgbb.com/" target="_blank">注册ImgBB账号</a>，
-        然后在个人资料页面获取API密钥。
+        How to get: <a href="https://api.imgbb.com/" target="_blank">Register an ImgBB account</a>,
+        then get the API key from your profile page.
       </p>
     </div>
     
     <div class="form-group" id="imgur-section" style="display: none;">
       <label for="imgur-client-id">Imgur Client ID</label>
-      <input type="text" id="imgur-client-id" placeholder="输入您的Imgur Client ID">
+      <div class="input-container">
+        <input type="password" id="imgur-client-id" placeholder="Enter your Imgur Client ID">
+        <i class="toggle-password fas fa-eye-slash" data-target="imgur-client-id"></i>
+      </div>
       <p class="help-text">
-        如何获取: <a href="https://api.imgur.com/oauth2/addclient" target="_blank">注册Imgur API</a>，
-        创建应用后获取Client ID。
+        How to get: <a href="https://api.imgur.com/oauth2/addclient" target="_blank">Register for Imgur API</a>,
+        get the Client ID after creating an application.
       </p>
     </div>
     
     <div class="button-group">
-      <button id="save-button">保存设置</button>
+      <button id="save-button">Save Settings</button>
       <div id="status-message"></div>
     </div>
   </div>

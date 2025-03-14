@@ -1,56 +1,47 @@
-# X2Notion Chrome插件
+[English](./README.md) | [中文](./README_cn.md)
 
-X2Notion是一个Chrome浏览器插件，允许用户将网页内容或选中的文本直接保存到Notion数据库中。
+# X2Notion Chrome Extension
 
-## 功能
+X2Notion Chrome browser extension that saves Twitter/X posts to a Notion Database
 
-- 保存整个网页到Notion
-- 保存选中的文本到Notion
-- 自定义Notion API密钥和数据库ID
+## Installation
 
-## 安装方法
+### Developer Mode Installation
 
-### 开发模式安装
+1. Download or clone this repository to your local machine
+2. Open Chrome browser and go to the extensions page (chrome://extensions/)
+3. Enable "Developer mode"
+4. Click "Load unpacked extension"
+5. Select the folder of this project
 
-1. 下载或克隆此仓库到本地
-2. 打开Chrome浏览器，进入扩展程序页面 (chrome://extensions/)
-3. 开启"开发者模式"
-4. 点击"加载已解压的扩展程序"
-5. 选择此项目的文件夹
+## How to Use
 
-## 使用方法
+1. Create a new integration in Notion
+   - Visit [Notion Integrations page](https://www.notion.so/my-integrations)
+   - Create a new integration and get the API key
 
-1. 在Notion中创建一个新的集成
-   - 访问 [Notion集成页面](https://www.notion.so/my-integrations)
-   - 创建一个新的集成并获取API密钥
-
-2. 在Notion中创建一个新的数据库，包含以下属性：
-   - Name (标题)
+2. Create a new database in Notion with the following properties:
+   - Name (Title, default)
    - URL (URL)
-   - Type (选择)
+   - Type (Text)
+   - Sender (Text)
+   - PostDate (Date)
+   - SaveDate (Date)
 
-3. 将数据库与您的集成共享
-   - 在Notion中打开数据库
-   - 点击右上角的"共享"按钮
-   - 添加您的集成
+3. Share the database with your integration
+   - Open the database in Notion
+   - Click the "Share" button in the top right corner
+   - Add your integration
 
-4. 配置插件
-   - 点击Chrome工具栏中的X2Notion图标
-   - 点击"设置"按钮
-   - 输入您的Notion API密钥和数据库ID
-   - 点击"保存设置"
+4. Configure the extension
+   - Click the X2Notion icon in the Chrome toolbar
+   - Click the "Settings" button
+   - Enter your Notion API key and database ID
+   - Click "Save Settings"
 
-5. 使用插件
-   - 浏览任意网页
-   - 点击Chrome工具栏中的X2Notion图标
-   - 选择"保存整个页面"或"保存选中内容"
+5. Use the extension
+   - Browse any webpage
+   - Click the X2Notion icon in the Chrome toolbar
+   - Choose "Save entire page" or "Save selection"
 
-## 技术栈
-
-- HTML/CSS/JavaScript
-- Chrome Extension API
-- Notion API
-
-## 许可证
-
-MIT 
+![](demo.png)
