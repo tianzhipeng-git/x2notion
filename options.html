@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>X2Notion 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <h1>X2Notion 设置</h1>
+    
+    <div class="form-group">
+      <label for="notion-api-key">Notion API密钥</label>
+      <input type="text" id="notion-api-key" placeholder="输入您的Notion API密钥">
+      <p class="help-text">
+        如何获取: <a href="https://www.notion.so/my-integrations" target="_blank">创建一个Notion集成</a>，
+        然后将生成的密钥粘贴到这里。
+      </p>
+    </div>
+    
+    <div class="form-group">
+      <label for="notion-database-id">Notion数据库ID</label>
+      <input type="text" id="notion-database-id" placeholder="输入您的Notion数据库ID">
+      <p class="help-text">
+        如何获取: 在Notion中创建一个数据库，然后从URL中复制数据库ID。
+        例如: https://www.notion.so/myworkspace/a8aec43384f447ed84390e8e42c2e089?v=...
+        其中 a8aec43384f447ed84390e8e42c2e089 就是数据库ID。
+      </p>
+    </div>
+    
+    <div class="form-group">
+      <label>图片中转服务</label>
+      <div class="radio-group">
+        <label>
+          <input type="radio" name="image-service" value="freeimage" checked> FreeImage
+        </label>
+        <label>
+          <input type="radio" name="image-service" value="imgbb"> ImgBB
+        </label>
+        <!-- <label>
+          <input type="radio" name="image-service" value="postimages"> PostImages
+        </label> -->
+        <label>
+          <input type="radio" name="image-service" value="imgur"> Imgur
+        </label>
+      </div>
+      <p class="help-text">
+        由于notion不支持直接上传图片data, 需要用一个图床进行图片中转服务。不同服务可能有不同的使用限制和稳定性。
+      </p>
+    </div>
+    
+    <div class="form-group" id="imgbb-section">
+      <label for="imgbb-api-key">ImgBB API密钥</label>
+      <input type="text" id="imgbb-api-key" placeholder="输入您的ImgBB API密钥">
+      <p class="help-text">
+        如何获取: <a href="https://api.imgbb.com/" target="_blank">注册ImgBB账号</a>，
+        然后在个人资料页面获取API密钥。
+      </p>
+    </div>
+    
+    <div class="form-group" id="imgur-section" style="display: none;">
+      <label for="imgur-client-id">Imgur Client ID</label>
+      <input type="text" id="imgur-client-id" placeholder="输入您的Imgur Client ID">
+      <p class="help-text">
+        如何获取: <a href="https://api.imgur.com/oauth2/addclient" target="_blank">注册Imgur API</a>，
+        创建应用后获取Client ID。
+      </p>
+    </div>
+    
+    <div class="button-group">
+      <button id="save-button">保存设置</button>
+      <div id="status-message"></div>
+    </div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html> 

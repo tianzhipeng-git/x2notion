@@ -1,0 +1,20 @@
+
+当前项目的目录结构: 
+```
+.
+├── README.md
+├── background.js
+├── content.js
+├── icons
+│   ├── icon128.png
+│   ├── icon16.png
+│   └── icon48.png
+├── manifest.json
+├── options.css
+├── options.html
+├── options.js
+├── popup.css
+├── popup.html
+└── popup.js
+```
+
