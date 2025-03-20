@@ -126,6 +126,15 @@ async function createNotionPage(apiKey, databaseId, data, type) {
     ]
   };
   
+  // 如果有分类数据，添加到属性中
+  if (data.category) {
+    requestBody.properties.Category = {
+      select: {
+        name: data.category
+      }
+    };
+  }
+  
   // 发送请求到Notion API
   const response = await fetch(url, {
     method: 'POST',

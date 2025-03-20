@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const statusMessage = document.getElementById('status-message');
   const imgbbApiKeyInput = document.getElementById('imgbb-api-key');
   const imgurClientIdInput = document.getElementById('imgur-client-id');
+  const categoriesInput = document.getElementById('categories');
   const imageServiceRadios = document.querySelectorAll('input[name="image-service"]');
   const imgbbSection = document.getElementById('imgbb-section');
   const imgurSection = document.getElementById('imgur-section');
@@ -37,7 +38,8 @@ document.addEventListener('DOMContentLoaded', function() {
       'notionDatabaseId', 
       'imgbbApiKey', 
       'imgurClientId',
-      'imageService'
+      'imageService',
+      'categories'
     ], 
     function(items) {
       if (items.notionApiKey) {
@@ -54,6 +56,10 @@ document.addEventListener('DOMContentLoaded', function() {
       
       if (items.imgurClientId) {
         imgurClientIdInput.value = items.imgurClientId;
+      }
+      
+      if (items.categories) {
+        categoriesInput.value = items.categories;
       }
       
       // 设置图片服务选择
@@ -100,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const notionDatabaseId = notionDatabaseIdInput.value.trim();
     const imgbbApiKey = imgbbApiKeyInput.value.trim();
     const imgurClientId = imgurClientIdInput.value.trim();
+    const categories = categoriesInput.value.trim();
     const imageService = document.querySelector('input[name="image-service"]:checked').value;
     
     // 验证输入
@@ -131,7 +138,8 @@ document.addEventListener('DOMContentLoaded', function() {
         notionDatabaseId: notionDatabaseId,
         imgbbApiKey: imgbbApiKey,
         imgurClientId: imgurClientId,
-        imageService: imageService
+        imageService: imageService,
+        categories: categories
       },
       function() {
         showStatus('Settings saved', 'success');

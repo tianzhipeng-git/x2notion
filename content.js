@@ -9,6 +9,11 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       html: document.documentElement.outerHTML
     };
     
+    // 如果请求中包含分类，则添加到数据中
+    if (request.category) {
+      pageData.category = request.category;
+    }
+    
     // 发送数据到后台脚本
     chrome.runtime.sendMessage(
       {
@@ -47,6 +52,11 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       html: container.innerHTML
     };
     
+    // 如果请求中包含分类，则添加到数据中
+    if (request.category) {
+      selectionData.category = request.category;
+    }
+    
     // 发送数据到后台脚本
     chrome.runtime.sendMessage(
       {
@@ -68,9 +78,22 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     const tweetData = {
       title: 'Tweet - ' + document.title,
       url: window.location.href,
-      content: tweetElement.textContent,
+      content: tweetElement.querySelector('[data-testid="tweetText"]') ? 
+        Array.from(tweetElement.querySelector('[data-testid="tweetText"]').childNodes)
+          .map(node => node.textContent || '')
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .replace(/ \n /g, '\n')
+          .replace(/ \n/g, '\n')
+          .replace(/\n /g, '\n')
+          .trim() : 'No text content',
       html: tweetElement.outerHTML
     };
+    
+    // 如果请求中包含分类，则添加到数据中
+    if (request.category) {
+      tweetData.category = request.category;
+    }
     
     // 发送数据到后台脚本
     chrome.runtime.sendMessage(
@@ -417,70 +440,321 @@ async function extractVideoThumbnail(tweetElement) {
   }
 }
 
-// 处理保存推文到Notion的点击事件
+// 创建分类选择弹窗
+function createCategoryDialog(categories, callback) {
+  // 检查是否已经有弹窗存在，如果有则先移除
+  const existingDialog = document.querySelector('.x2notion-category-dialog');
+  if (existingDialog) {
+    existingDialog.remove();
+  }
+  
+  // 移除已有的遮罩层
+  const existingOverlay = document.querySelector('.x2notion-overlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+
+  // 创建弹窗
+  const dialog = document.createElement('div');
+  dialog.className = 'x2notion-category-dialog';
+  dialog.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    padding: 16px;
+    z-index: 10000;
+    max-width: 300px;
+    width: 100%;
+    color: #333333;
+  `;
+
+  // 创建标题
+  const title = document.createElement('h3');
+  title.textContent = '选择分类';
+  title.style.cssText = `
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 16px;
+    color: #333333;
+  `;
+
+  // 添加分类选择列表
+  const categoryList = document.createElement('div');
+  categoryList.style.cssText = `
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    color: #333333;
+  `;
+
+  // 添加分类选项
+  categories.forEach(category => {
+    const categoryOption = document.createElement('div');
+    categoryOption.style.cssText = `
+      padding: 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      color: #333333;
+    `;
+    categoryOption.textContent = category;
+    categoryOption.addEventListener('mouseover', function() {
+      this.style.backgroundColor = '#f0f0f0';
+    });
+    categoryOption.addEventListener('mouseout', function() {
+      this.style.backgroundColor = 'transparent';
+    });
+    categoryOption.addEventListener('click', function() {
+      // 移除弹窗和遮罩层
+      dialog.remove();
+      overlay.remove();
+      callback(category);
+    });
+    categoryList.appendChild(categoryOption);
+  });
+
+  // 添加取消按钮
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = '取消';
+  cancelButton.style.cssText = `
+    background-color: #f0f0f0;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 8px;
+    color: #333333;
+  `;
+  cancelButton.addEventListener('click', function() {
+    // 移除弹窗和遮罩层
+    dialog.remove();
+    overlay.remove();
+    callback(null);
+  });
+
+  // 添加不选择分类按钮
+  const skipButton = document.createElement('button');
+  skipButton.textContent = '不使用分类';
+  skipButton.style.cssText = `
+    background-color: #e0e0e0;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #333333;
+  `;
+  skipButton.addEventListener('click', function() {
+    // 移除弹窗和遮罩层
+    dialog.remove();
+    overlay.remove();
+    callback('');
+  });
+
+  // 添加按钮容器
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    display: flex;
+    justify-content: flex-end;
+  `;
+  buttonContainer.appendChild(cancelButton);
+  buttonContainer.appendChild(skipButton);
+
+  // 组装弹窗
+  dialog.appendChild(title);
+  dialog.appendChild(categoryList);
+  dialog.appendChild(buttonContainer);
+
+  // 添加背景蒙层
+  const overlay = document.createElement('div');
+  overlay.className = 'x2notion-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+  `;
+  overlay.addEventListener('click', function(event) {
+    if (event.target === overlay) {
+      // 移除弹窗和遮罩层
+      overlay.remove();
+      dialog.remove();
+      callback(null);
+    }
+  });
+
+  // 添加到页面
+  document.body.appendChild(overlay);
+  document.body.appendChild(dialog);
+}
+
+// 修改处理推文保存到Notion的点击事件
 async function handleTweetSaveToNotionClick(event, tweetElement) {
   event.preventDefault();
   event.stopPropagation();
   
-  // 显示加载状态
-  const button = event.currentTarget;
-  const originalText = button.innerHTML;
-  button.innerHTML = 'Saving...';
-  button.disabled = true;
-  
   try {
-    // 提取推文中的图片并转换为Base64
+    // 获取点击的按钮
+    const button = event.currentTarget;
+    
+    // 更新按钮状态
+    button.innerHTML = `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M12 4c-.8 0-1.5.7-1.5 1.5v5.2L7.3 7.4c-.6-.6-1.5-.6-2.1 0-.6.6-.6 1.5 0 2.1l5.6 5.6c.6.6 1.5.6 2.1 0l5.6-5.6c.6-.6.6-1.5 0-2.1-.6-.6-1.5-.6-2.1 0l-3.2 3.2V5.5c0-.8-.7-1.5-1.5-1.5z"></path>
+      </svg>
+      <span>Saving...</span>
+    `;
+    button.style.color = '#1DA1F2';
+    button.disabled = true;
+    
+    // 提取推文元素内的图片数据
     const imageData = await extractImagesFromTweet(tweetElement);
+    
+    // 提取引用链接
+    const quotedUrl = extractQuotedUrl(tweetElement);
+    
+    // 提取视频缩略图
     const videoThumbnail = await extractVideoThumbnail(tweetElement);
     
-    // 发送消息到内容脚本自身
-    chrome.runtime.sendMessage(
-      {
-        action: 'sendToNotion',
-        data: {
-          title: tweetElement.querySelector('[data-testid="tweetText"]')?.innerText.substring(0, 25),
-          sender: (tweetElement.querySelector('[data-testid="User-Name"]')?.innerText.split('@')[0] || '').substring(0, 15),
-          url: tweetElement.querySelector('a[href*="/status/"]')?.href || window.location.href,
-          post_date: tweetElement.querySelector('time')?.getAttribute('datetime'),
-          save_date: new Date().toISOString(),
-          content: tweetElement.querySelector('[data-testid="tweetText"]')?.innerText || 'No text content',
-          html: tweetElement.outerHTML,
-          imageData: imageData, // 直接传递Base64图片数据
-          // 提取推文中的引用链接
-          quoted_url: extractQuotedUrl(tweetElement),
-          quoted_text: tweetElement.querySelectorAll('[data-testid="tweetText"]')[1]?.innerText || undefined,
-          video_thumbnail: videoThumbnail
-        },
-        type: 'tweet'
-      },
-      function(response) {
-        // 恢复按钮状态
-        setTimeout(() => {
-          button.innerHTML = originalText;
-          button.disabled = false;
+    // 获取发送者和发布日期
+    const senderElement = tweetElement.querySelector('a[href*="/status/"] span');
+    const sender = senderElement ? senderElement.textContent : '';
+    
+    // 从时间元素获取发布日期
+    const timeElement = tweetElement.querySelector('time');
+    const postDate = timeElement && timeElement.getAttribute('datetime') ? new Date(timeElement.getAttribute('datetime')).toISOString() : '';
+    
+    // 获取引用的推文内容
+    const quotedContent = tweetElement.querySelector('[aria-labelledby]') || tweetElement.querySelector('[data-testid="card.wrapper"]');
+    const quotedText = quotedContent ? quotedContent.textContent : '';
+    
+    // 将推文数据发送到后台脚本
+    const tweetData = {
+      title: tweetElement.querySelector('[data-testid="tweetText"]')?.innerText.substring(0, 25) || 'Tweet',
+      url: tweetElement.querySelector('a[href*="/status/"]')?.href || window.location.href,
+      content: tweetElement.querySelector('[data-testid="tweetText"]') ? 
+        Array.from(tweetElement.querySelector('[data-testid="tweetText"]').childNodes)
+          .map(node => node.textContent || '')
+          .join(' '): 'No text content',
+      html: tweetElement.outerHTML,
+      imageData: imageData,
+      quoted_url: quotedUrl,
+      quoted_text: quotedText,
+      video_thumbnail: videoThumbnail,
+      sender: (tweetElement.querySelector('[data-testid="User-Name"]')?.innerText.split('@')[0] || '').substring(0, 15),
+      post_date: postDate,
+      save_date: new Date().toISOString()
+    };
+    console.log(tweetData)
+    
+    // 检查是否有分类配置
+    chrome.storage.sync.get(['categories', 'categoryUsageTime'], async function(items) {
+      let selectedCategory = null;
+      
+      if (items.categories && items.categories.trim()) {
+        // 处理分类列表，去除空行和前后空格
+        const categoryList = items.categories
+          .split('\n')
+          .map(cat => cat.trim())
+          .filter(cat => cat.length > 0);
+        
+        if (categoryList.length > 0) {
+          // 获取分类使用时间记录
+          const categoryUsageTime = items.categoryUsageTime || {};
           
-          // 显示结果
-          if (response && response.success) {
-            button.innerHTML = 'Saved ✓';
-            setTimeout(() => {
-              button.innerHTML = originalText;
-            }, 2000);
-          } else {
-            button.innerHTML = 'Failed ✗';
-            setTimeout(() => {
-              button.innerHTML = originalText;
-            }, 2000);
+          // 按照最后使用时间对分类排序
+          const sortedCategories = [...categoryList].sort((a, b) => {
+            const timeA = categoryUsageTime[a] || 0;
+            const timeB = categoryUsageTime[b] || 0;
+            return timeB - timeA; // 降序排序，最近使用的在前面
+          });
+          
+          // 显示分类选择弹窗
+          selectedCategory = await new Promise(resolve => {
+            createCategoryDialog(sortedCategories, category => {
+              resolve(category);
+            });
+          });
+          
+          // 如果用户取消了选择，中止保存
+          if (selectedCategory === null) {
+            // 恢复按钮状态
+            button.innerHTML = `
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5z"></path>
+              </svg>
+              <span>X2Notion</span>
+            `;
+            button.style.color = 'rgb(83, 100, 113)';
+            button.disabled = false;
+            return;
           }
-        }, 1000);
+          
+          // 如果选择了分类，更新最后使用时间
+          if (selectedCategory) {
+            const newCategoryUsageTime = { ...categoryUsageTime };
+            newCategoryUsageTime[selectedCategory] = Date.now();
+            chrome.storage.sync.set({ categoryUsageTime: newCategoryUsageTime });
+          }
+        }
       }
-    );
+      
+      // 添加选中的分类到推文数据
+      if (selectedCategory) {
+        tweetData.category = selectedCategory;
+      }
+      
+      // 发送数据到后台脚本
+      chrome.runtime.sendMessage(
+        {
+          action: 'sendToNotion',
+          data: tweetData,
+          type: 'tweet'
+        },
+        function(response) {
+          // 更新按钮状态
+          if (response && response.success) {
+            button.innerHTML = `
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M9 20c-.264 0-.52-.104-.707-.293l-4.785-4.785c-.39-.39-.39-1.023 0-1.414s1.023-.39 1.414 0l3.946 3.945L18.075 4.41c.32-.45.94-.558 1.395-.24.45.318.56.942.24 1.394L9.817 19.577c-.17.24-.438.395-.732.42-.028.002-.057.003-.085.003z"></path>
+              </svg>
+              <span>Saved</span>
+            `;
+            button.style.color = '#4CAF50';
+            button.disabled = false;
+          } else {
+            button.innerHTML = `
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M12 3.75c-4.55 0-8.25 3.69-8.25 8.25 0 1.92.66 3.68 1.75 5.08L17.09 5.5C15.68 4.4 13.92 3.75 12 3.75zm6.5 3.17L6.92 18.5c1.4 1.1 3.16 1.75 5.08 1.75 4.56 0 8.25-3.69 8.25-8.25 0-1.92-.65-3.68-1.75-5.08zM1.75 12C1.75 6.34 6.34 1.75 12 1.75S22.25 6.34 22.25 12 17.66 22.25 12 22.25 1.75 17.66 1.75 12z"></path>
+              </svg>
+              <span>Failed</span>
+            `;
+            button.style.color = '#FF5252';
+            button.disabled = false;
+            
+            console.error('Failed to save tweet:', response ? response.error : 'Unknown error');
+          }
+        }
+      );
+    });
   } catch (error) {
-    console.error('Processing images failed:', error);
-    button.innerHTML = 'Failed ✗';
-    setTimeout(() => {
-      button.innerHTML = originalText;
-      button.disabled = false;
-    }, 2000);
+    console.error('Error handling tweet save:', error);
+    
+    // 更新按钮状态为失败
+    const button = event.currentTarget;
+    button.innerHTML = `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M12 3.75c-4.55 0-8.25 3.69-8.25 8.25 0 1.92.66 3.68 1.75 5.08L17.09 5.5C15.68 4.4 13.92 3.75 12 3.75zm6.5 3.17L6.92 18.5c1.4 1.1 3.16 1.75 5.08 1.75 4.56 0 8.25-3.69 8.25-8.25 0-1.92-.65-3.68-1.75-5.08zM1.75 12C1.75 6.34 6.34 1.75 12 1.75S22.25 6.34 22.25 12 17.66 22.25 12 22.25 1.75 17.66 1.75 12z"></path>
+      </svg>
+      <span>Failed</span>
+    `;
+    button.style.color = '#FF5252';
+    button.disabled = false;
   }
 }
 
